@@ -1,0 +1,507 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>如何使用 Openssl 创建一个证书</title>
+    <url>/how-to-genarete-certificate-with-openssl/</url>
+    <content><![CDATA[<h1 id="如何使用-Openssl-创建一个证书"><a href="#如何使用-Openssl-创建一个证书" class="headerlink" title="如何使用 Openssl 创建一个证书"></a>如何使用 Openssl 创建一个证书</h1><blockquote>
+<p>使用 openssl 创建证书的命令记录</p>
+</blockquote>
+<h2 id="关于格式"><a href="#关于格式" class="headerlink" title="关于格式"></a>关于格式</h2><ul>
+<li><p><code>PEM</code> – <code>Openssl</code> 使用 <code>PEM</code>(<code>Privacy Enhanced Mail</code>) 格式来存放各种信息， 它是 <code>openssl</code> 默认采用的信息存放方式。<code>Apache</code> 和 <code>NGINX</code> 服务器偏向于使用这种编码格式。<code>Openssl</code> 中的 <code>PEM</code> 文件一般包含如下信息:</p>
+<ul>
+<li>内容类型：表明本文件存放的是什么信息内容，它的形式为 <code>----- BEGIN XXXX -----</code>，与结尾的 <code>----- END XXXX -----</code> 对应；</li>
+<li>头信息：表明数据是如果被处理后存放，<code>openssl</code> 中用的最多的是加密信息，比如加密算法以及初始化向量 <code>iv</code>。</li>
+<li>信息体：为 <code>Base64</code> 编码的数据。可以包括所有私钥（<code>RSA</code> 和 <code>DSA</code>）、公钥（<code>RSA</code> 和 <code>DSA</code>）和 (<code>x509</code>) 证书。它存储用 <code>Base64</code> 编码的 <code>DER</code> 格式数据，用 <code>ascii</code> 报头包围，因此适合系统之间的文本模式传输。</li>
+</ul>
+</li>
+<li><p><code>DER</code> - 编码规则 (<code>DER</code>) 可包含所有私钥、公钥和证书。<code>Java</code> 和 <code>Windows</code> 服务器偏向于使用这种编码格式。它是大多数浏览器的缺省格式，并按 <code>ASN1 DER</code> 格式存储。它是无报头的， 而 <code>PEM</code> 是用文本报头包围的 <code>DER</code>。</p>
+</li>
+<li><p>证书用途</p>
+<ul>
+<li><code>digitalSignature</code>: 电子签名</li>
+<li><code>nonRepudiation</code>: 不可否认</li>
+<li><code>keyEncipherment</code>: 密钥加密</li>
+<li><code>dataEncipherment</code>: 数据加密</li>
+<li><code>keyAgreement</code>:</li>
+<li><code>keyCertSign</code>: 密钥证书签名</li>
+<li><code>cRLSign</code>: <code>cRl</code> 签名</li>
+<li><code>encipherOnly</code>: 仅加密</li>
+<li><code>decipherOnly</code>: 仅解密</li>
+</ul>
+</li>
+</ul>
+<h2 id="命令"><a href="#命令" class="headerlink" title="命令"></a>命令</h2><pre class="line-numbers language-bash" data-language="bash"><code class="language-bash">
+<span class="token function">cat</span> <span class="token operator">&gt;</span> v3.ext <span class="token operator">&lt;&lt;</span> <span class="token string">EOF
+# 自签名根证书
+[ v3_ca ]
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical,CA:true
+keyUsage = cRLSign, keyCertSign
+subjectKeyIdentifier = hash
+
+# 证书
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+
+# 用户证书
+[ usr_cert ]
+authorityKeyIdentifier = keyid,issuer
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+# 签名证书
+# keyUsage = digitalSignature, nonRepudiation
+# 加密证书
+# keyUsage = keyEncipherment, dataEncipherment, keyAgreement
+# 兼顾签名和加密
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment, keyAgreement
+
+EOF</span>
+
+<span class="token comment"># * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * #</span>
+
+<span class="token comment"># 1. 生成根证书私钥</span>
+
+openssl genpkey -algorithm RSA -quiet -outform PEM -pkeyopt rsa_keygen_bits:2048 <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.pem
+openssl genpkey -algorithm EC -quiet -outform PEM -pkeyopt ec_paramgen_curve:sm2 <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.pem
+
+<span class="token comment"># 2. 利用根证书私钥生成根证书公钥(可选)</span>
+
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_public_key.pem
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_public_key.pem
+
+<span class="token comment"># 3. 密钥格式转换</span>
+
+openssl pkey -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.der
+openssl pkey -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.der
+
+openssl pkey -inform DER -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.der <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.convert.pem
+openssl pkey -inform DER -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.der <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.convert.pem
+
+<span class="token comment"># 4. 根证书私钥转换成 Java 能处理的 PKCS#8 格式(可选)</span>
+
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key_pkcs8.pem
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key_pkcs8.pem
+
+<span class="token comment"># 5. 生成根证书请求</span>
+
+openssl req -new -noenc -keyform PEM -outform PEM <span class="token punctuation">\</span>
+        -key rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -subj <span class="token string">"/C=CN/ST=Shanghai/L=Shanghai/O=Agree CO.,Ltd./OU=Open Bank Link/CN=This is a oblink root certificate/emailAddress=bmsd@agree.com.cn"</span>
+openssl req -new -noenc -keyform PEM -outform PEM <span class="token punctuation">\</span>
+        -key sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -subj <span class="token string">"/C=CN/ST=Shanghai/L=Shanghai/O=Agree CO.,Ltd./OU=Open Bank Link/CN=This is a oblink root certificate/emailAddress=bmsd@agree.com.cn"</span> <span class="token punctuation">\</span>
+        -sigopt <span class="token string">"distid:1234567812345678"</span>
+
+<span class="token comment"># 6. 根证书请求验证</span>
+
+openssl req -check -sha256 -inform PEM -in rsa_openssl_root_certificate_signing_request.pem
+openssl req -check -sm3 -inform PEM -in sm2_openssl_root_certificate_signing_request.pem
+
+<span class="token comment"># 7. 证书请求格式转换</span>
+
+openssl req -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_signing_request.der
+openssl req -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_signing_request.der
+
+<span class="token comment"># 8. 生成根证书</span>
+
+openssl x509 -req -days <span class="token number">365</span> -sha256 -extfile v3.ext -extensions v3_req <span class="token punctuation">\</span>
+        -keyform PEM -outform PEM -key rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate.pem
+openssl x509 -req -days <span class="token number">365</span> -sm3    -extfile v3.ext -extensions v3_req <span class="token punctuation">\</span>
+        -keyform PEM -outform PEM -key sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -sigopt <span class="token string">"distid:1234567812345678"</span> -vfyopt <span class="token string">"distid:1234567812345678"</span>
+
+<span class="token comment"># 9. 从根证书获取证书请求</span>
+
+openssl x509 -x509toreq -keyform PEM -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -key rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_signing_request_form_certificate.pem
+openssl x509 -x509toreq -keyform PEM -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -key sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_signing_request_form_certificate.pem
+
+<span class="token comment"># 10. 根证书格式转换</span>
+
+openssl x509 -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate.pem -out rsa_openssl_root_certificate.der
+openssl x509 -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate.pem -out sm2_openssl_root_certificate.der
+
+<span class="token comment"># 11. 从根证书中获取根证书公钥(可选)</span>
+
+openssl x509 -pubkey -nocert -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_public_key_from_certificate.pem
+openssl x509 -pubkey -nocert -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_public_key_form_certificate.pem
+
+<span class="token comment"># * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * #</span>
+
+<span class="token comment"># 1. 生成证书私钥</span>
+
+openssl genpkey -algorithm RSA -quiet -outform PEM -pkeyopt rsa_keygen_bits:2048 <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key.pem
+openssl genpkey -algorithm EC -quiet -outform PEM -pkeyopt ec_paramgen_curve:sm2 <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key.pem
+
+<span class="token comment"># 2. 利用证书私钥生成证书公钥(可选)</span>
+
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_public_key.pem
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_public_key.pem
+
+<span class="token comment"># 3. 证书私钥转换成 Java 能处理的 PKCS#8 格式(可选)</span>
+
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_pkcs8.pem
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_pkcs8.pem
+
+<span class="token comment"># 4. 生成证书请求</span>
+
+openssl req -new -noenc -keyform PEM -outform PEM <span class="token punctuation">\</span>
+        -key rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -subj <span class="token string">"/C=CN/ST=Shannxi/L=Xi'an/O=Agree CO.,Ltd./OU=Open Bank Link develop/CN=This is a oblink certificate/emailAddress=oblink@agree.com.cn"</span>
+openssl req -new -noenc -keyform PEM -outform PEM <span class="token punctuation">\</span>
+        -key sm2_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -subj <span class="token string">"/C=CN/ST=Shannxi/L=Xi'an/O=Agree CO.,Ltd./OU=Open Bank Link develop/CN=This is a oblink certificate/emailAddress=oblink@agree.com.cn"</span> <span class="token punctuation">\</span>
+        -sigopt <span class="token string">"distid:1234567812345678"</span>
+
+<span class="token comment"># 5. 根证书签署证书</span>
+
+openssl x509 -req -days <span class="token number">365</span> -sha256 -CAcreateserial -extfile v3.ext <span class="token punctuation">\</span>
+        -extensions v3_req -CAform PEM -CAkeyform PEM -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -CA rsa_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -CAkey rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate.pem
+openssl x509 -req -days <span class="token number">365</span> -sm3 -CAcreateserial -extfile v3.ext <span class="token punctuation">\</span>
+        -extensions v3_req -CAform PEM -CAkeyform PEM -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -CA sm2_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -CAkey sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_signing_request.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate.pem <span class="token punctuation">\</span>
+        -sigopt <span class="token string">"distid:1234567812345678"</span> -vfyopt <span class="token string">"distid:1234567812345678"</span>
+
+<span class="token comment"># 6. 从证书中获取证书公钥(此处获取的公钥是根证书的, 可选)</span>
+
+openssl x509 -pubkey -nocert -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_issuer_certificate_public_key_from_certificate.pem
+openssl x509 -pubkey -nocert -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_issuer_certificate_public_key_from_certificate.pem
+
+
+<span class="token comment"># * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * # * - * #</span>
+
+
+<span class="token comment"># 1. 私钥加密码</span>
+
+openssl pkey -aes256 -passout pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_encipher.pem
+openssl pkey -aes256 -passout pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_encipher.pem
+
+<span class="token comment"># 2. 私钥去解密</span>
+
+openssl pkey -passin pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_decipher.pem
+openssl pkey -passin pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_decipher.pem
+
+<span class="token comment"># 3. 私钥改解密</span>
+
+openssl pkey -passin pass:ImAPassword -aes256 -passout pass:ImAPasswordToo <span class="token punctuation">\</span>
+        -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_encipher2.pem
+openssl pkey -passin pass:ImAPassword -aes256 -passout pass:ImAPasswordToo <span class="token punctuation">\</span>
+        -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_encipher2.pem
+
+<span class="token comment"># 4. 证书导出 PKCS#12</span>
+
+openssl pkcs12 -export -passout pass:ImApassword <span class="token punctuation">\</span>
+        -inkey rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate.pfx
+openssl pkcs12 -export -passout pass:ImApassword <span class="token punctuation">\</span>
+        -inkey rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate.pem <span class="token punctuation">\</span>
+        -CAfile rsa_openssl_root_certificate.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate.pfx
+
+<span class="token comment"># 5. 证书查看(-noenc 代表私钥未加密)</span>
+
+openssl pkcs12 -info -noenc -passin pass:ImApassword -in rsa_openssl_root_certificate.pfx
+openssl pkcs12 -info -noenc -passin pass:ImApassword -in rsa_openssl_certificate.pfx
+
+<span class="token comment"># 6. 加验签</span>
+
+openssl pkeyutl -sign -rawin -keyform PEM <span class="token punctuation">\</span>
+        -inkey rsa_openssl_certificate_private_key.pem -in v3.ext  <span class="token punctuation">\</span>
+        -out rsa_sign -digest sha256
+openssl pkeyutl -verify -rawin -certin <span class="token punctuation">\</span>
+        -keyform PEM -inkey rsa_openssl_certificate.pem -in v3.ext <span class="token punctuation">\</span>
+        -sigfile rsa_sign -digest sha256
+openssl pkeyutl -sign -rawin -keyform PEM <span class="token punctuation">\</span>
+        -inkey sm2_openssl_certificate_private_key.pem -in v3.ext <span class="token punctuation">\</span>
+        -out sm2_sign     -digest sm3 -pkeyopt distid:<span class="token string">"1234567812345678"</span>
+openssl pkeyutl -verify -rawin -certin -keyform PEM <span class="token punctuation">\</span>
+        -inkey sm2_openssl_certificate.pem-in v3.ext <span class="token punctuation">\</span>
+        -sigfile sm2_sign -digest sm3 -pkeyopt distid:<span class="token string">"1234567812345678"</span>
+<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+]]></content>
+      <categories>
+        <category>certificate</category>
+      </categories>
+      <tags>
+        <tag>certificate</tag>
+        <tag>rsa</tag>
+        <tag>sm2</tag>
+        <tag>openssl</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>如何使用 Openssl 创建一对密钥对</title>
+    <url>/how-to-genarete-keypair-with-openssl/</url>
+    <content><![CDATA[<h1 id="如何使用-Openssl-创建一对密钥对"><a href="#如何使用-Openssl-创建一对密钥对" class="headerlink" title="如何使用 Openssl 创建一对密钥对"></a>如何使用 Openssl 创建一对密钥对</h1><blockquote>
+<p>使用 openssl 创建一对 RSA 密钥<br>使用 openssl 创建一对 SM2 密钥</p>
+</blockquote>
+<h2 id="关于格式"><a href="#关于格式" class="headerlink" title="关于格式"></a>关于格式</h2><ul>
+<li><p><code>PEM</code> – <code>Openssl</code> 使用 <code>PEM</code>(<code>Privacy Enhanced Mail</code>) 格式来存放各种信息， 它是 <code>openssl</code> 默认采用的信息存放方式。<code>Apache</code> 和 <code>NGINX</code> 服务器偏向于使用这种编码格式。<code>Openssl</code> 中的 <code>PEM</code> 文件一般包含如下信息:</p>
+<ul>
+<li>内容类型：表明本文件存放的是什么信息内容，它的形式为 <code>----- BEGIN XXXX -----</code>，与结尾的 <code>----- END XXXX -----</code> 对应；</li>
+<li>头信息：表明数据是如果被处理后存放，<code>openssl</code> 中用的最多的是加密信息，比如加密算法以及初始化向量 <code>iv</code>。</li>
+<li>信息体：为 <code>Base64</code> 编码的数据。可以包括所有私钥（<code>RSA</code> 和 <code>DSA</code>）、公钥（<code>RSA</code> 和 <code>DSA</code>）和 (<code>x509</code>) 证书。它存储用 <code>Base64</code> 编码的 <code>DER</code> 格式数据，用 <code>ascii</code> 报头包围，因此适合系统之间的文本模式传输。</li>
+</ul>
+</li>
+<li><p><code>DER</code> - 编码规则 (<code>DER</code>) 可包含所有私钥、公钥和证书。<code>Java</code> 和 <code>Windows</code> 服务器偏向于使用这种编码格式。它是大多数浏览器的缺省格式，并按 <code>ASN1 DER</code> 格式存储。它是无报头的， 而 <code>PEM</code> 是用文本报头包围的 <code>DER</code>。</p>
+</li>
+</ul>
+<h2 id="过程"><a href="#过程" class="headerlink" title="过程"></a>过程</h2><ol>
+<li>生成私钥</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl genpkey -algorithm RSA -quiet -outform PEM -pkeyopt rsa_keygen_bits:2048 <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.pem
+<span class="token comment"># SM2</span>
+openssl genpkey -algorithm EC -quiet -outform PEM -pkeyopt ec_paramgen_curve:sm2 <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="2">
+<li>利用私钥生成公钥</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_public_key.pem
+<span class="token comment"># SM2</span>
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_public_key.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="3">
+<li>密钥格式转换</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.der
+openssl pkey -inform DER -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.der <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.convert.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.der
+openssl pkey -inform DER -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.der <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.convert.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+
+<ol start="4">
+<li>私钥转换成 Java 能处理的 PKCS#8 格式</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key_pkcs8.pem
+
+<span class="token comment"># SM2</span>
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key_pkcs8.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="5">
+<li>私钥加密码</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -aes256 -passout pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_encipher.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -aes256 -passout pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_encipher.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="6">
+<li>私钥去除密码</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -passin pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_decipher.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -passin pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_decipher.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="7">
+<li>私钥改密码</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -passin pass:ImAPassword -aes256 -passout pass:ImAPasswordToo <span class="token punctuation">\</span>
+        -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_encipher2.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -passin pass:ImAPassword -aes256 -passout pass:ImAPasswordToo <span class="token punctuation">\</span>
+        -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_encipher2.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+]]></content>
+      <categories>
+        <category>certificate</category>
+      </categories>
+      <tags>
+        <tag>rsa</tag>
+        <tag>sm2</tag>
+        <tag>openssl</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>如何提需求和记录需求</title>
+    <url>/how-to-raise-request/</url>
+    <content><![CDATA[<h1 id="如何提需求和记录需求"><a href="#如何提需求和记录需求" class="headerlink" title="如何提需求和记录需求"></a>如何提需求和记录需求</h1><blockquote>
+<p>由于不同团队的差异性较大，每个人的能力和风格也不同，即使是同一个团队内部不同的产品经理做事方法与风格都会不一样。<br>所以此文档书写一些在提需求的必要条件，供给参考</p>
+</blockquote>
+<h2 id="需求文档必备要素"><a href="#需求文档必备要素" class="headerlink" title="需求文档必备要素"></a>需求文档必备要素</h2><h3 id="需求背景"><a href="#需求背景" class="headerlink" title="需求背景"></a>需求背景</h3><ul>
+<li>为什么要提这个需求，基于什么样的业务背景提出来的。</li>
+</ul>
+<h3 id="目前现状"><a href="#目前现状" class="headerlink" title="目前现状"></a>目前现状</h3><ul>
+<li>问题现状是什么，当前是怎么处理的。</li>
+<li>确认是否是这个原因导致了需求中提到的问题，即确认问题与原因之间的因果关联性，避免文不对题。</li>
+</ul>
+<h3 id="需求详情"><a href="#需求详情" class="headerlink" title="需求详情"></a>需求详情</h3><ul>
+<li>这个需求的详细内容包括哪些。注意一下几点：<ul>
+<li>建议用<code>总——分</code>的表达方式，即总体需求是什么，细分需求点分别是什么 (需求点 1, 需求点 2……)</li>
+<li> 需求是否需要同时处理前后台、需要在哪些端开发 (web、wap or app)</li>
+<li> 需求类型是什么，是新增功能，还是修复 BUG, 或者用户体验优化，网站性能优化等等，具体需要处理哪个功能模块或页面</li>
+<li>需求涉及的场景是什么，用户会在什么场景下使用该功能，前置 / 后置条件是什么</li>
+<li>需求是否涉及到产品规则或者参数，如果有则要列出来</li>
+<li>建议将开发需求和设计需求分开来表达，不要笼统地放在一个文档里，尤其是设计需求，单独用一个文档或表格或页面来表达</li>
+<li>是否需要跟其他部门对接合作，期望其他部门什么时候可以配合，什么时候可以交付等等。</li>
+</ul>
+</li>
+</ul>
+<h3 id="需求来源"><a href="#需求来源" class="headerlink" title="需求来源"></a>需求来源</h3><ul>
+<li>这个需求来源于谁，方便有问题不清楚时及时找到相关人进行沟通确认。</li>
+</ul>
+<h3 id="需求目标"><a href="#需求目标" class="headerlink" title="需求目标"></a>需求目标</h3><ul>
+<li>需求方提出需求，产品 (项目) 经理提出解决方案，开发按照需求方案进行处理后，期望达到什么样的目标，要用数据「量化」。</li>
+<li>根据 SMART 原则中可量化衡量原则，一定要「数据化」和「可视化」</li>
+</ul>
+<h3 id="预定效果"><a href="#预定效果" class="headerlink" title="预定效果"></a>预定效果</h3><ul>
+<li>增加的这个功能最终想要实现什么样的效果，这个一般是交互和视觉层面的效果。<ul>
+<li>比如一个按钮，鼠标 hover 时、移开时、点击时和点击后分别是什么样的效果和前后状态变化。</li>
+</ul>
+</li>
+</ul>
+<h3 id="技术可行性分析"><a href="#技术可行性分析" class="headerlink" title="技术可行性分析"></a>技术可行性分析</h3><ul>
+<li>这个问题一般要产品、技术、设计一起进行分析。</li>
+<li>有些时候想法是美好的，但是以公司目前的技术实力，可能还难以做到，或者技术上投入产出比太低，开发必要性不大，或者是当前技术无法实现等各方面的原因，都有可能导致我们的想法落空。</li>
+</ul>
+<h3 id="需求优先级"><a href="#需求优先级" class="headerlink" title="需求优先级"></a>需求优先级</h3><ul>
+<li>产品 (项目) 经理的需求池里往往有大量需求，那么如何定义每个需求的优先级呢，这里有几个需求优先级的判定方法供参考：<ul>
+<li>KANO 模型法：基本型需求 &gt; 期望型需求 &gt; 兴奋型需求</li>
+<li>矩阵分析法：重要且紧急 &gt; 重要不紧急 &gt; 紧急不重要 &gt; 不重要也不紧急</li>
+<li>经济收益法：经济收益高且紧迫的功能需求 &gt; 经济收益高但不紧迫的功能需求 &gt; 紧迫但经济收益不高的功能需求 &gt; 不紧迫且经济收益不高的功能需求</li>
+<li>前 / 后置需求分析法：前置需求的优先级 &gt; 后置需求的优先级；前置需求的重要性和紧迫性 &gt; 后置需求的重要性和紧迫性</li>
+<li>满足核心用户需求的优先 (二八原则)</li>
+<li> 满足核心业务的需求优先 (资源最大化利用)</li>
+<li> 满足核心业务的投入产出比最大的需求优先 (ROI 最大化)</li>
+<li> 当然，有些需求可能难以按照以上方法清晰地排出优先顺序，那也可以采用另一种方法：P0、P1、P2 (优先级依次递减)</li>
+</ul>
+</li>
+</ul>
+<h3 id="需求排期"><a href="#需求排期" class="headerlink" title="需求排期"></a>需求排期</h3><ul>
+<li>这个需求期望在什么时间开发完成，什么时间提测，以及什么时间安排上线。</li>
+<li>如果没有按时上线，下次什么时间可以上线，或者上线后出现问题，补救时间是什么时候。</li>
+</ul>
+<h3 id="人员分配"><a href="#人员分配" class="headerlink" title="人员分配"></a>人员分配</h3><blockquote>
+<p>尽量明确到个人</p>
+</blockquote>
+<ul>
+<li>设计由谁负责，多少工时</li>
+<li>前端由谁负责，多少工时</li>
+<li>后端由谁负责，多少工时</li>
+</ul>
+]]></content>
+      <categories>
+        <category>软件工程</category>
+      </categories>
+      <tags>
+        <tag>需求</tag>
+        <tag>文档</tag>
+      </tags>
+  </entry>
+</search>

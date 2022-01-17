@@ -1,0 +1,560 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)">
+<meta name="generator" content="Hexo 6.0.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+
+
+
+
+
+  
+  
+  
+  <script src="https://cdn.jsdelivr.net/npm/pace-js@1.2.4/pace.min.js" integrity="sha256-gqd7YTjg/BtfqWSwsJOvndl0Bxc8gFImLEkXQT8+qj0=" crossorigin="anonymous"></script>
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"zornx5.github.io","root":"/","images":"/images","scheme":"Gemini","darkmode":true,"version":"8.9.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":true,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":true,"pangu":true,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"},"path":"/search.xml","localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false}}</script>
+<meta name="description" content="记录关于使用 Openssl 创建一对密钥对">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何使用 Openssl 创建一对密钥对">
+<meta property="og:url" content="https://zornx5.github.io/how-to-genarete-keypair-with-openssl/index.html">
+<meta property="og:site_name" content="Zorn 的杂货铺">
+<meta property="og:description" content="记录关于使用 Openssl 创建一对密钥对">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-12-04T10:32:55.000Z">
+<meta property="article:modified_time" content="2021-12-04T10:32:55.000Z">
+<meta property="article:author" content="Zorn X5">
+<meta property="article:tag" content="rsa">
+<meta property="article:tag" content="sm2">
+<meta property="article:tag" content="openssl">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://zornx5.github.io/how-to-genarete-keypair-with-openssl/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"zh-CN","comments":true,"permalink":"https://zornx5.github.io/how-to-genarete-keypair-with-openssl/","path":"how-to-genarete-keypair-with-openssl/","title":"如何使用 Openssl 创建一对密钥对"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>如何使用 Openssl 创建一对密钥对 | Zorn 的杂货铺</title>
+  
+
+
+
+
+  <noscript>
+    
+  </noscript>
+<link rel="alternate" href="/atom.xml" title="Zorn 的杂货铺" type="application/atom+xml">
+<script>function loadCss(l){var d=document,h=d.head,s=d.createElement('link');s.rel='stylesheet';s.href=l;!function e(f){if (d.body)return f();setTimeout(function(){e(f)})}(function(){h.appendChild(s);});}loadCss('/style.css');loadCss('https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css');loadCss('https://cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css');loadCss('https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css');loadCss('https://cdn.jsdelivr.net/npm/pace-js@1.2.4/themes/blue/pace-theme-minimal.css');</script><noscript><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.4/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pace-js@1.2.4/themes/blue/pace-theme-minimal.css"></noscript></head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏" role="button">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">Zorn 的杂货铺</p>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">Enjoy U</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a></li>
+        <li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a></li>
+        <li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a></li>
+        <li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a></li>
+        <li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a></li>
+        <li class="menu-item menu-item-sitemap"><a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a></li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup"><div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off" maxlength="80" placeholder="搜索..." spellcheck="false" type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close" role="button">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="search-result-container no-result">
+  <div class="search-result-icon">
+    <i class="fa fa-spinner fa-pulse fa-5x"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8-Openssl-%E5%88%9B%E5%BB%BA%E4%B8%80%E5%AF%B9%E5%AF%86%E9%92%A5%E5%AF%B9"><span class="nav-number">1.</span> <span class="nav-text">如何使用 Openssl 创建一对密钥对</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E4%BA%8E%E6%A0%BC%E5%BC%8F"><span class="nav-number">1.1.</span> <span class="nav-text">关于格式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%87%E7%A8%8B"><span class="nav-number">1.2.</span> <span class="nav-text">过程</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="Zorn X5" src="https://avatars.githubusercontent.com/u/46475731?s=460&amp;u=88dacfedc219fddb662e246599969887b9a9f03b&amp;v=4">
+  <p class="site-author-name" itemprop="name">Zorn X5</p>
+  <div class="site-description" itemprop="description">One hand is Hello, other hand is World.</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+          <a href="/categories/">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/zornx5" title="GitHub → https://github.com/zornx5" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:zornx5@gmail.com" title="E-Mail → mailto:zornx5@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="返回顶部">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/zornx5" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope="" itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://zornx5.github.io/how-to-genarete-keypair-with-openssl/">
+
+    <span hidden="" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="https://avatars.githubusercontent.com/u/46475731?s=460&amp;u=88dacfedc219fddb662e246599969887b9a9f03b&amp;v=4">
+      <meta itemprop="name" content="Zorn X5">
+      <meta itemprop="description" content="One hand is Hello, other hand is World.">
+    </span>
+
+    <span hidden="" itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Zorn 的杂货铺">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          如何使用 Openssl 创建一对密钥对
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2021-12-04 18:32:55" itemprop="dateCreated datePublished" datetime="2021-12-04T18:32:55+08:00">2021-12-04</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+          <a href="/categories/certificate/" itemprop="url" rel="index"><span itemprop="name">certificate</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+    <span class="post-meta-break"></span>
+    <span class="post-meta-item" title="本文字数">
+      <span class="post-meta-item-icon">
+        <i class="far fa-file-word"></i>
+      </span>
+      <span class="post-meta-item-text">本文字数：</span>
+      <span>3k</span>
+    </span>
+    <span class="post-meta-item" title="阅读时长">
+      <span class="post-meta-item-icon">
+        <i class="far fa-clock"></i>
+      </span>
+      <span class="post-meta-item-text">阅读时长 ≈</span>
+      <span>3 分钟</span>
+    </span>
+</div>
+
+            <div class="post-description">记录关于使用 Openssl 创建一对密钥对</div>
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="如何使用-Openssl-创建一对密钥对"><a href="#如何使用-Openssl-创建一对密钥对" class="headerlink" title="如何使用 Openssl 创建一对密钥对"></a>如何使用 Openssl 创建一对密钥对</h1><blockquote>
+<p>使用 openssl 创建一对 RSA 密钥<br>使用 openssl 创建一对 SM2 密钥</p>
+</blockquote>
+<h2 id="关于格式"><a href="#关于格式" class="headerlink" title="关于格式"></a>关于格式</h2><ul>
+<li><p><code>PEM</code> – <code>Openssl</code> 使用 <code>PEM</code>(<code>Privacy Enhanced Mail</code>) 格式来存放各种信息， 它是 <code>openssl</code> 默认采用的信息存放方式。<code>Apache</code> 和 <code>NGINX</code> 服务器偏向于使用这种编码格式。<code>Openssl</code> 中的 <code>PEM</code> 文件一般包含如下信息:</p>
+<ul>
+<li>内容类型：表明本文件存放的是什么信息内容，它的形式为 <code>----- BEGIN XXXX -----</code>，与结尾的 <code>----- END XXXX -----</code> 对应；</li>
+<li>头信息：表明数据是如果被处理后存放，<code>openssl</code> 中用的最多的是加密信息，比如加密算法以及初始化向量 <code>iv</code>。</li>
+<li>信息体：为 <code>Base64</code> 编码的数据。可以包括所有私钥（<code>RSA</code> 和 <code>DSA</code>）、公钥（<code>RSA</code> 和 <code>DSA</code>）和 (<code>x509</code>) 证书。它存储用 <code>Base64</code> 编码的 <code>DER</code> 格式数据，用 <code>ascii</code> 报头包围，因此适合系统之间的文本模式传输。</li>
+</ul>
+</li>
+<li><p><code>DER</code> - 编码规则 (<code>DER</code>) 可包含所有私钥、公钥和证书。<code>Java</code> 和 <code>Windows</code> 服务器偏向于使用这种编码格式。它是大多数浏览器的缺省格式，并按 <code>ASN1 DER</code> 格式存储。它是无报头的， 而 <code>PEM</code> 是用文本报头包围的 <code>DER</code>。</p>
+</li>
+</ul>
+<h2 id="过程"><a href="#过程" class="headerlink" title="过程"></a>过程</h2><ol>
+<li>生成私钥</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl genpkey -algorithm RSA -quiet -outform PEM -pkeyopt rsa_keygen_bits:2048 <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.pem
+<span class="token comment"># SM2</span>
+openssl genpkey -algorithm EC -quiet -outform PEM -pkeyopt ec_paramgen_curve:sm2 <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="2">
+<li>利用私钥生成公钥</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_public_key.pem
+<span class="token comment"># SM2</span>
+openssl pkey -pubout -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_public_key.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="3">
+<li>密钥格式转换</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.der
+openssl pkey -inform DER -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.der <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key.convert.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -inform PEM -outform DER <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.der
+openssl pkey -inform DER -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.der <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key.convert.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+
+<ol start="4">
+<li>私钥转换成 Java 能处理的 PKCS#8 格式</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in rsa_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_root_certificate_private_key_pkcs8.pem
+
+<span class="token comment"># SM2</span>
+openssl pkcs8 -topk8 -inform PEM -outform PEM -nocrypt <span class="token punctuation">\</span>
+        -in sm2_openssl_root_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_root_certificate_private_key_pkcs8.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="5">
+<li>私钥加密码</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -aes256 -passout pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_encipher.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -aes256 -passout pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_encipher.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="6">
+<li>私钥去除密码</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -passin pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_decipher.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -passin pass:ImAPassword -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_decipher.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<ol start="7">
+<li>私钥改密码</li>
+</ol>
+<pre class="line-numbers language-bash" data-language="bash"><code class="language-bash"><span class="token comment"># RSA</span>
+openssl pkey -passin pass:ImAPassword -aes256 -passout pass:ImAPasswordToo <span class="token punctuation">\</span>
+        -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in rsa_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out rsa_openssl_certificate_private_key_encipher2.pem
+
+<span class="token comment"># SM2</span>
+openssl pkey -passin pass:ImAPassword -aes256 -passout pass:ImAPasswordToo <span class="token punctuation">\</span>
+        -inform PEM -outform PEM <span class="token punctuation">\</span>
+        -in sm2_openssl_certificate_private_key_encipher.pem <span class="token punctuation">\</span>
+        -out sm2_openssl_certificate_private_key_encipher2.pem<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="followme">
+  <span>欢迎关注我的其它发布渠道</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+        <a target="_blank" class="social-link" href="https://t.me/ctmdy">
+          <span class="icon">
+            <i class="fab fa-telegram"></i>
+          </span>
+
+          <span class="label">Telegram</span>
+        </a>
+      </div>
+
+      <div class="social-item">
+        <a target="_blank" class="social-link" href="/atom.xml">
+          <span class="icon">
+            <i class="fa fa-rss"></i>
+          </span>
+
+          <span class="label">RSS</span>
+        </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/rsa/" rel="tag"># rsa</a>
+              <a href="/tags/sm2/" rel="tag"># sm2</a>
+              <a href="/tags/openssl/" rel="tag"># openssl</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/how-to-raise-request/" rel="prev" title="如何提需求和记录需求">
+                  <i class="fa fa-chevron-left"></i> 如何提需求和记录需求
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/how-to-genarete-certificate-with-openssl/" rel="next" title="如何使用 Openssl 创建一个证书">
+                  如何使用 Openssl 创建一个证书 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  © 2018 – 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">©️Zorn X5</span>
+</div>
+<div class="wordcount">
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-line"></i>
+    </span>
+      <span>站点总字数：</span>
+    <span title="站点总字数">14k</span>
+  </span>
+  <span class="post-meta-item">
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+      <span>站点阅读时长 ≈</span>
+    <span title="站点阅读时长">13 分钟</span>
+  </span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+    </div>
+  </footer>
+
+  
+  <script size="300" alpha="0.6" zindex="-1" src="https://cdn.jsdelivr.net/npm/ribbon.js@1.0.2/dist/ribbon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@next-theme/pjax@0.5.0/pjax.min.js" integrity="sha256-3NkoLDrmHLTYj7csHIZSr0MHAFTXth7Ua/DDt4MRUAg=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js" integrity="sha256-yt2kYMy0w8AbtF89WXb2P1rfjcP/HTHLT7097U8Y5b8=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lozad@1.16.0/dist/lozad.min.js" integrity="sha256-mOFREFhqmHeQbXpK2lp4nA3qooVgACfh88fpJftLBbc=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pangu@4.0.7/dist/browser/pangu.min.js" integrity="sha256-j+yj56cdEY2CwkVtGyz18fNybFGpMGJ8JxG3GSyO2+I=" crossorigin="anonymous"></script>
+
+
+  
+<script src="https://cdn.jsdelivr.net/npm/hexo-generator-searchdb@1.4.0/dist/search.js" integrity="sha256-vXZMYLEqsROAXkEw93GGIvaB2ab+QW6w3+1ahD9nXXA=" crossorigin="anonymous"></script>
+
+
+  
+  
+
+
+  
+
+  
+
+  
+  <script data-pjax="" async="" src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/quicklink@2.2.0/dist/quicklink.umd.js" integrity="sha256-4kQf9z5ntdQrzsBC3YSHnEz02Z9C1UeW/E9OgnvlzSY=" crossorigin="anonymous"></script>
+  
+  
+
+
+
+<script src="/bundle.js"></script><script>{"object_url":{"url":"https://cdn.jsdelivr.net/npm/pdfobject@2.2.7/pdfobject.min.js","integrity":"sha256-ph3Dk89VmuTVXG6x/RDzk53SU9LPdAh1tpv0UvnDZ2I="},"url":"/lib/pdf/web/viewer.html"};
+{"enable":true,"home":false,"archive":false,"delay":true,"timeout":3000,"priority":true,"url":"https://zornx5.github.io/how-to-genarete-keypair-with-openssl/"}</script></body></html>
